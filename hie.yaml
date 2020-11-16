@@ -1,0 +1,13 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:relational"
+
+    - path: "app/Main.hs"
+      component: "relational:exe:relational"
+
+    - path: "test"
+      component: "relational:test:relational-test"
+
+    - path: "benchmark/Main.hs"
+      component: "relational:bench:relational-benchmark"
