@@ -9,7 +9,11 @@ module Relational
     Pointed (..),
     Key (..),
     filterBag,
-    indexBy
+    indexBy,
+    mergeBag,
+    crossBag,
+    equijoin,
+    Table (..),
   )
 where
 
@@ -17,8 +21,8 @@ where
 
 import qualified Data.Bifunctor as Bifunctor
 import qualified Data.Vector as V
-import Relude hiding (Map, empty, null, reduce, filter)
-import qualified Relude as Relude 
+import Relude hiding (Map, empty, filter, null, reduce)
+import qualified Relude as Relude
 
 class Bifunctor p => Assoc p where
   assoc :: p (p a b) c -> p a (p b c)
@@ -45,8 +49,8 @@ mergeBag = fmap reduceBag
 unionBag :: Bag a -> Bag a -> Bag a
 unionBag x y = Bag (elements x <> elements y)
 
-crossBag :: [a] -> [b] -> [(a, b)]
-crossBag s t = [(a,b) | a <- s, b <- t]
+crossBag :: Bag a -> Bag b -> Bag (a, b)
+crossBag (Bag s) (Bag t) = Bag [(a, b) | a <- s, b <- t]
 
 reduceBag :: Monoid m => Bag m -> m
 reduceBag x = mconcat $ elements x
@@ -173,10 +177,12 @@ instance (Key k1, Key k2) => Key (k1, k2) where
 instance (Functor (Map k1), Functor (Map k2)) => Functor (Map (k1, k2)) where
   fmap f (Comp t) = Comp (fmap (fmap f) t)
 
+newtype Table k v = Table {unTable :: Map k (Bag v)}
 
-newtype Table k v = Table { unTable :: Map k (Bag v) }
-
-union x1 x2 = do
-  let a1 = merge (x1, x2)
-  let a2 = fmap (<>) a1
-  () 
+equijoin :: Key k => (a -> k) -> (b -> k) -> Bag a -> Bag b -> Bag (a, b)
+equijoin f g x y =
+  elems
+    . fmap (\(Bag a1, Bag a2) -> Bag $ zip a1 a2)
+    $ merge (x `indexBy` f, y `indexBy` g)
+  where
+    elems = fmap snd . ix'

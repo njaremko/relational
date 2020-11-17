@@ -1,4 +1,11 @@
-module Relational.Data.Bag (merge, union, cartesianProduct, filter, reduce) where
+module Relational.Data.Bag
+  ( merge,
+    union,
+    cartesianProduct,
+    filter,
+    reduce,
+  )
+where
 
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet

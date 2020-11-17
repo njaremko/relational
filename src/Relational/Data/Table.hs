@@ -1,60 +1,56 @@
 module Relational.Data.Table
-  ( Table (..),
+  ( Relation (..),
   )
 where
 
 import qualified Data.Map as Map
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import qualified Relational.Data.Bag as Bag
 import Relude hiding (empty, filter, null, reduce)
 
-newtype Table k v = Table {unTable :: Map k (MultiSet v)}
+newtype Header = Header {unHeader :: Map Text Int} deriving newtype (Eq)
 
-instance Ord k => Semigroup (Table k v) where
-  (<>) (Table m1) (Table m2) = Table $ Map.union m1 m2
+data Relation a = Relation Header (Vector a)
 
-instance Ord k => Monoid (Table k v) where
-  mempty = Table Map.empty
+data Elem = ElemText Text | ElemInt Int
 
-empty :: Map k v
-empty = Map.empty
+data Person = Person {personName :: Text, personEmal :: Text}
 
-isEmpty :: Map k v -> Bool
-isEmpty = Map.null
+class Algebra a where
+  projection :: (a -> a) -> a -> a
+  union :: a -> a -> Maybe a
+  cartesianProduct :: a -> a -> a
+  selection :: Header -> a -> a
 
-single :: (k, v) -> Map k v
-single (k, v) = Map.singleton k v
-
-merge :: Ord k => (Map k v, Map k v) -> Map k (v, v)
-merge (m1, m2) = Map.unionWith combineTuples (duplicateValues m1) (duplicateValues m2)
+indexFilter ::
+  (Num b, Eq b, Enum b) =>
+  Vector a ->
+  Vector b ->
+  Vector a
+indexFilter v idx = Vector.map (fst) (Vector.filter (\x -> elemV (snd x) idx) vectorMap)
   where
-    duplicateValues :: Map k v -> Map k (v, v)
-    duplicateValues m = fmap (\x -> (x, x)) m
+    vectorMap = Vector.zipWith (\a b -> (b, a)) (Vector.iterateN size (+ 1) 0) v
+    size = Vector.length v
+    elemV a = Vector.foldl (\acc x -> if x == a then True else acc) False
 
-    combineTuples :: (v, v) -> (v, v) -> (v, v)
-    combineTuples (x1, _) (y1, _) = (x1, y1)
+instance Algebra (Relation a) where
+  selection (Header selectedHeaders) (Relation (Header headers) rows) =
+    let newHeader = Map.intersection selectedHeaders headers
+        newRows = indexFilter rows (Vector.fromList $ Map.elems newHeader)
+     in Relation (Header newHeader) newRows
 
-merge' :: Map k (v1, v2) -> (Map k v1, Map k v2)
-merge' x = (fmap fst x, fmap snd x)
+  union (Relation header1 rows1) (Relation header2 rows2) = 
+      if header1 == header2
+          then Just $ Relation header1 $ rows1 <> rows2
+          else Nothing
 
-dom :: (Ord k) => Map k v -> MultiSet k
-dom m = MultiSet.fromList $ Map.keys m
+  cartesianProduct 
 
-cod :: (Ord k, Ord v) => Map k v -> MultiSet v
-cod t = reduce (fmap MultiSet.singleton t)
-
-lookup :: Ord k => Map k v -> (k -> Maybe v)
-lookup = flip Map.lookup
-
-ix :: (Ord k, Ord v) => MultiSet (k, v) -> Map k (MultiSet v)
-ix kvs = Map.fromList ((\(k, v) -> (k, MultiSet.fromList [v])) <$> MultiSet.elems kvs)
-
-ix' :: (Ord k, Ord v) => Map k (MultiSet v) -> MultiSet (k, v)
-ix' a = MultiSet.fromList [(k, v) | (k, vs) <- Map.assocs a, v <- MultiSet.elems vs]
-
-indexBy :: (Ord k, Ord v) => MultiSet v -> (v -> k) -> Map k (MultiSet v)
-s `indexBy` f = ix (MultiSet.map (\x -> (f x, x)) s)
-
-reduce :: (Ord k, Ord v, Monoid v) => Map k v -> v
-reduce = Bag.reduce . cod
+-- example :: Relation Elem
+-- example = do
+--   let x1 = Relation ["id", "name", "email"] $ Vector.fromList [ElemInt 1, ElemText "John", ElemText "Smith"]
+--   let x2 = projection (\(Relation [h : headers] rows) -> Relation headers rows) x1
+--   x2
