@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Protolude hiding (Map, filter)
+import Relude hiding (Map, filter)
 import Relational
 
 data Customer = C {cid :: Int, name :: Text}

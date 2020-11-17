@@ -1,7 +1,7 @@
 module Main (main) where
 
 import Gauge.Main
-import Protolude
+import Relude
 
 main :: IO ()
 main = defaultMain [bench "const" (whnf const ())]

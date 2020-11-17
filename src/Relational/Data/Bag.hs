@@ -2,7 +2,7 @@ module Relational.Data.Bag (merge, union, cartesianProduct, filter, reduce) wher
 
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
-import Protolude hiding (empty, filter, null, reduce)
+import Relude hiding (empty, filter, null, reduce)
 
 merge :: (Monoid a, Ord a) => MultiSet (MultiSet a) -> MultiSet a
 merge = MultiSet.map reduce

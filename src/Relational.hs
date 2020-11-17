@@ -17,8 +17,8 @@ where
 
 import qualified Data.Bifunctor as Bifunctor
 import qualified Data.Vector as V
-import Protolude hiding (Map, empty, null, reduce, filter)
-import qualified Protolude
+import Relude hiding (Map, empty, null, reduce, filter)
+import qualified Relude as Relude 
 
 class Bifunctor p => Assoc p where
   assoc :: p (p a b) c -> p a (p b c)
@@ -83,7 +83,7 @@ instance (Pointed a, Pointed b) => Pointed (a, b) where
 
 instance Pointed (Bag a) where
   null = mempty
-  isNull = Protolude.null . elements
+  isNull = Relude.null . elements
 
 class (Functor (Map k)) => Key k where
   data Map k :: Type -> Type

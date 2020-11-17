@@ -20,13 +20,11 @@ source-repository head
   location:            https://github.com/njaremko/relational.git
 
 common common-options
-  build-depends:       aeson
-                     , base ^>= 4.14.0.0
+  build-depends:       base ^>= 4.14.0.0
                      , bytestring
                      , containers
-                     , fused-effects
                      , multiset
-                     , protolude
+                     , relude
                      , stm
                      , transformers
                      , text
@@ -47,6 +45,8 @@ common common-options
                        -Wpartial-fields
   if impl(ghc >= 8.8)
     ghc-options:       -Wmissing-deriving-strategies
+                       -fwrite-ide-info
+                       -hiedir=.hie
 
   default-extensions:  ApplicativeDo BangPatterns ConstraintKinds DataKinds DefaultSignatures DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings PatternSynonyms RankNTypes ScopedTypeVariables StandaloneDeriving StrictData TupleSections TypeApplications TypeFamilies TypeFamilyDependencies TypeOperators
 

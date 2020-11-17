@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Protolude
+import Relude
 
 main :: IO ()
-main = putStrLn ("Test suite is not implemented" :: Text)
+main = putTextLn "Test suite is not implemented"
