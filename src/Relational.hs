@@ -37,7 +37,7 @@ instance Assoc Either where
   unassoc (Right (Left b)) = Left (Right b)
   unassoc (Right (Right c)) = Right c
 
-newtype Bag a = Bag {elements :: [a]} deriving (Functor, Applicative, Monad)
+newtype Bag a = Bag {elements :: [a]} deriving newtype (Functor, Applicative, Monad)
 
 mergeBag :: Monoid a => Bag (Bag a) -> Bag a
 mergeBag = fmap reduceBag
