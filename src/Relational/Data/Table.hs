@@ -60,8 +60,8 @@ example = do
             [ Tuple $ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
               Tuple $ Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
             ]
-      relation = Relation {name = "", heading, tuples}
-  prettyPrint $ cartesianProduct relation relation
+      relation = Relation {name = "asdf", heading, tuples}
+  prettyPrint $ cartesianProduct relation (relation {name = "fdsa"})
 
 headerByVal :: Heading -> [(Text, Int)]
 headerByVal (Heading h) = sortWith snd $ Map.assocs h
@@ -108,14 +108,15 @@ instance Algebra (Relation PrimaryKeyNumeric) where
             let leftWithAllRight = \(a1, a2) -> fmap (a1 <>) a2
              in mconcat (leftWithAllRight <$> zip e1 e2)
           maxIndex = foldr max 0 h1
+          leftHeader = Map.fromList ((\ (k, v) -> (name1 <> "." <> k, v)) <$> Map.assocs h1)
           newHeading =
             Heading
-              . Map.union h1 -- Make a new map of attribute index for both relations
+              . Map.union leftHeader -- Make a new map of attribute index for both relations
               . Map.fromList
               . flip zip [maxIndex + 1 ..] -- Add new indexes for these attribute names
-              . fmap ((name2 <>) . fst) -- Take just the attribute names
+              . fmap (((name2 <> ".") <>) . fst) -- Take just the attribute names
               . sortWith snd -- Sort by indexes
-              $ Map.assocs h2 -- Get indexes of attributes in relation
+              $ Map.assocs h2-- Get indexes of attributes in relation
        in Relation (Name name1) newHeading
             . Map.fromList
             . zip [0 ..]
