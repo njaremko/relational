@@ -27,6 +27,9 @@ data Attribute = Attribute
   }
   deriving stock (Eq, Ord, Show)
 
+mkAttribute :: Text -> Attribute
+mkAttribute name = Attribute {relname = mempty, name}
+
 data Relation a = Relation
   { name :: Maybe Text,
     heading :: Heading,
@@ -72,8 +75,8 @@ prettyPrint (Relation _ heading tuples) = do
 
 example :: IO ()
 example = do
-  let heading1 = Heading $ Map.fromList [(Attribute {relname = Just "apples", name = "id"}, 0), (Attribute {relname = Just "apples", name = "name"}, 1), (Attribute {relname = Just "apples", name = "email"}, 2)]
-      heading2 = Heading $ Map.fromList [(Attribute {relname = Just "bees", name = "id"}, 0), (Attribute {relname = Just "bees", name = "name"}, 1), (Attribute {relname = Just "bees", name = "email"}, 2)]
+  let heading1 = Heading $ Map.fromList [(mkAttribute "id", 0), (mkAttribute "name", 1), (mkAttribute "email", 2)]
+      heading2 = Heading $ Map.fromList [(mkAttribute "id", 0), (mkAttribute "name", 1), (mkAttribute "email", 2)]
       tuples =
         Map.fromList $
           zip
@@ -127,13 +130,17 @@ instance Algebra (Relation PrimaryKeyNumeric) where
             let leftWithAllRight = \(a1, a2) -> fmap (a1 <>) a2
              in mconcat (leftWithAllRight <$> zip e1 e2)
           maxIndex = foldr max 0 $ Map.elems leftHeader -- Find size of current tuples in relation
+          leftWithRelName = Map.mapKeys (\Attribute {name} -> Attribute {relname = relname1, name}) leftHeader
           newHeading =
             Heading $
-              Map.union leftHeader
+              Map.union leftWithRelName
                 . Map.fromList -- Make a new map of attribute index for both relations
                 . flip zip [maxIndex + 1 ..] -- Add new indexes for these attribute names
-                . fmap fst -- Take just the attribute names
-                . sortWith snd -- Sort by indexes
+                . fmap -- Add relation name to attributes, if relevant
+                  ( (\Attribute {name} -> (Attribute {relname = relname2, name}))
+                      . fst
+                  )
+                . sortWith snd -- Sort attributes by tuple ordering
                 . Map.assocs
                 $ rightHeader
        in Relation
