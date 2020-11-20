@@ -5,13 +5,9 @@ module Relational.Data.Table
   )
 where
 
-import qualified Data.Bifunctor as Bifunctor
 import qualified Data.Map as Map
-import Data.MultiSet (MultiSet)
-import qualified Data.MultiSet as MultiSet
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
-import qualified Relational.Data.Bag as Bag
 import Relude hiding (empty, filter, null, reduce)
 
 -- newtype Heading = Heading {unHeading :: Map Text Int} deriving newtype (Eq, Semigroup, Monoid)
@@ -30,10 +26,10 @@ data Attribute = Attribute
 mkAttribute :: Text -> Attribute
 mkAttribute name = Attribute {relname = mempty, name}
 
-data Relation a = Relation
+data Relation = Relation
   { name :: Maybe Text,
     heading :: Heading,
-    tuples :: Map a Tuple
+    tuples :: Map Int Tuple
   }
 
 newtype PrimaryKeyNumeric = PrimaryKeyNumeric Int deriving newtype (Eq, Ord, Enum, Num)
@@ -57,7 +53,7 @@ class Algebra a where
 
 --   equiJoin :: Text -> Text -> a -> a -> a
 
-prettyPrint :: Relation a -> IO ()
+prettyPrint :: Relation -> IO ()
 prettyPrint (Relation _ heading tuples) = do
   printHeader heading
   traverse_ (\(Tuple x) -> print x) tuples
@@ -80,7 +76,7 @@ example = do
       tuples =
         Map.fromList $
           zip
-            ([0 ..] :: [PrimaryKeyNumeric])
+            [0 ..] 
             [ Tuple $ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
               Tuple $ Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
             ]
@@ -99,10 +95,14 @@ indexFilter v idx = Vector.map fst (Vector.filter (\x -> elemV (snd x) idx) vect
     size = Vector.length v
     elemV a = Vector.foldl (\acc x -> (x == a) || acc) False
 
-instance Semigroup (Relation PrimaryKeyNumeric) where
-  (<>) = (<>)
+naturalJoin :: Relation -> Relation -> Relation
+naturalJoin Relation{} Relation{} = mempty
+naturalJoin a b = a
 
-instance Monoid (Relation PrimaryKeyNumeric) where
+instance Semigroup Relation where
+  (<>) = naturalJoin
+
+instance Monoid Relation where
   mempty =
     Relation
       { heading = mempty,
@@ -110,7 +110,7 @@ instance Monoid (Relation PrimaryKeyNumeric) where
         name = mempty
       }
 
-instance Algebra (Relation PrimaryKeyNumeric) where
+instance Algebra Relation where
   projection (Heading selectedHeaders) (Relation name (Heading headers) rows) =
     let newHeader = Map.intersection selectedHeaders headers
         newRows = Map.map (\(Tuple elems) -> Tuple $ indexFilter elems (Vector.fromList $ Map.elems newHeader)) rows
