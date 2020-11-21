@@ -15,7 +15,7 @@ import Relude hiding (empty, filter, null, reduce)
 -- newtype Heading = Heading {unHeading :: Map Text Int} deriving newtype (Eq, Semigroup, Monoid)
 newtype Heading = Heading {unHeading :: Map Attribute Int} deriving newtype (Eq, Semigroup, Monoid)
 
-newtype Tuple = Tuple {unTuple :: Vector Elem} deriving newtype (Eq, Semigroup, Monoid)
+newtype Tuple = Tuple {unTuple :: Vector Elem} deriving newtype (Eq, Semigroup, Monoid, Show)
 
 newtype Name = Name {unName :: Text} deriving newtype (Eq, Semigroup, Monoid, IsString)
 
@@ -90,6 +90,7 @@ example2 = do
 example3 :: IO ()
 example3 = do
   let e = equiJoin (mkAttribute "id", example1) (mkAttribute "person_id", example2)
+
   traverse_ prettyPrint e
 
 example :: IO ()
@@ -201,17 +202,16 @@ instance Algebra Relation where
 
   equiJoin
     (attr1, leftRel)
-    (attr2, rightRel) =
+    (attr2, rightRel) = 
       maybeToRight "EquiJoin is not possible." $ do
         a2 <- Map.lookup attr1 $ unHeading $ heading leftRel
         a3 <- Map.lookup attr2 $ unHeading $ heading rightRel
-        let joinMap =
+        let joinMap = 
               foldr
                 handleFold
                 mempty
-                ( (\(k, Tuple v) -> (Vector.unsafeIndex v k, Tuple v))
-                    <$> Map.assocs (tuples leftRel)
-                )
+                ( (\(k, Tuple v) -> (Vector.unsafeIndex v a2, Tuple v))
+                    <$> Map.assocs (tuples leftRel))
         return $ doMerge joinMap (leftRel, a2) (rightRel, a3)
       where
         handleFold :: (Elem, Tuple) -> Map Elem [Tuple] -> Map Elem [Tuple]
@@ -229,10 +229,10 @@ instance Algebra Relation where
           (Relation {name = buildName, heading = buildHeading}, buildIndex)
           (Relation {name = probeName, heading = probeHeading, tuples = probeTuples}, probeIndex) = do
             let mergedHeadings = mergeHeadings (buildName, buildHeading) (probeName, probeHeading)
-                x = mconcat $
+                mergedTuples = mconcat $
                   catMaybes $
                     flip fmap (Map.assocs probeTuples) $ \(i, Tuple t) -> do
                       found <- Map.lookup (Vector.unsafeIndex t probeIndex) joinMap
                       return $ Map.fromList $ fmap (\(Tuple tmp) -> (i, Tuple $ tmp <> t)) found
 
-            Relation {name = mempty, heading = mergedHeadings, tuples = x}
+            Relation {name = mempty, heading = mergedHeadings, tuples = mergedTuples}
