@@ -2,7 +2,7 @@ module Relational.Data.Table
   ( Relation (..),
     Algebra (..),
     example,
-    example3
+    example3,
   )
 where
 
@@ -202,17 +202,11 @@ instance Algebra Relation where
 
   equiJoin
     (attr1, leftRel)
-    (attr2, rightRel) = 
+    (attr2, rightRel) =
       maybeToRight "EquiJoin is not possible." $ do
         a2 <- Map.lookup attr1 $ unHeading $ heading leftRel
         a3 <- Map.lookup attr2 $ unHeading $ heading rightRel
-        let joinMap = 
-              foldr
-                handleFold
-                mempty
-                ( (\(k, Tuple v) -> (Vector.unsafeIndex v a2, Tuple v))
-                    <$> Map.assocs (tuples leftRel))
-        return $ doMerge joinMap (leftRel, a2) (rightRel, a3)
+        return $ doMerge (leftRel, a2) (rightRel, a3)
       where
         handleFold :: (Elem, Tuple) -> Map Elem [Tuple] -> Map Elem [Tuple]
         handleFold (valElem, valTuple) acc =
@@ -223,11 +217,17 @@ instance Algebra Relation where
                   $ Map.lookup valElem acc
            in Map.insert valElem x acc
 
-        doMerge :: Map Elem [Tuple] -> (Relation, Int) -> (Relation, Int) -> Relation
+        doMerge :: (Relation, Int) -> (Relation, Int) -> Relation
         doMerge
-          joinMap
           (Relation {name = buildName, heading = buildHeading}, buildIndex)
           (Relation {name = probeName, heading = probeHeading, tuples = probeTuples}, probeIndex) = do
+            let joinMap =
+                  foldr
+                    handleFold
+                    mempty
+                    ( (\(Tuple v) -> (Vector.unsafeIndex v buildIndex, Tuple v))
+                        <$> Map.elems (tuples leftRel)
+                    )
             let mergedHeadings = mergeHeadings (buildName, buildHeading) (probeName, probeHeading)
                 mergedTuples = mconcat $
                   catMaybes $
