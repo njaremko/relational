@@ -7,7 +7,7 @@ import Relational
 import qualified Data.Map as Map
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
-import Relational.Data.Table (example)
+import Relational.Data.Table (example,example3)
 
 data Customer = C {cid :: Int, name :: Text}
 
@@ -24,5 +24,6 @@ data Invoice = I {iid :: Int, cust :: Int, due :: Int, amount :: Int}
 
 main :: IO ()
 main = do
-  example
+  -- example
+  example3
   return ()
