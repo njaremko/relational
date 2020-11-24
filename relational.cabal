@@ -47,6 +47,7 @@ common common-options
     ghc-options:       -Wmissing-deriving-strategies
                        -fwrite-ide-info
                        -hiedir=.hie
+                       -haddock
 
   default-extensions:  ApplicativeDo BangPatterns ConstraintKinds DataKinds DefaultSignatures DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings PatternSynonyms RankNTypes ScopedTypeVariables StandaloneDeriving StrictData TupleSections TypeApplications TypeFamilies TypeFamilyDependencies TypeOperators
 
@@ -56,12 +57,14 @@ library
   import:              common-options
   hs-source-dirs:      src
   exposed-modules:     Relational
-                    ,  Relational.Data.Bag
-                    ,  Relational.Data.Relation
-                    ,  Relational.Data.Attribute
-                    ,  Relational.Example
-                    ,  Relational.Data.Elem
                     ,  Relational.Algebra
+                    ,  Relational.Data.Attribute
+                    ,  Relational.Data.Bag
+                    ,  Relational.Data.Elem
+                    ,  Relational.Data.Heading
+                    ,  Relational.Data.Relation
+                    ,  Relational.Data.Tuple
+                    ,  Relational.Example
 
 executable relational
   import:              common-options

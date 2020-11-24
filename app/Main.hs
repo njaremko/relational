@@ -1,13 +1,8 @@
 module Main (main) where
 
 import Relude hiding (Map, filter)
-import Relational
--- import  Relational.Data.Table (Table)
--- import qualified Relational.Data.Table as Table
-import qualified Data.Map as Map
-import Data.MultiSet (MultiSet)
-import qualified Data.MultiSet as MultiSet
-import Relational.Data.Table (example,example3)
+
+import Relational.Example (example,example3)
 
 data Customer = C {cid :: Int, name :: Text}
 
