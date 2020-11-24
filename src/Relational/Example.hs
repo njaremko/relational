@@ -6,6 +6,7 @@ import qualified Relational.Data.Attribute as Attribute
 import qualified Data.Vector as Vector
 import Relude 
 import Relational.Data.Elem
+import qualified Relational.Algebra as Algebra
 
 example1 :: Relation
 example1 = do
@@ -34,8 +35,11 @@ example2 = do
 example3 :: IO ()
 example3 = do
   let e = equiJoin (Attribute.mkAttribute "id", example1) (Attribute.mkAttribute "person_id", example2)
-
+      r = selectionWithConst
+              (Attribute.Attribute {relname=Just "people", name="id"}) (ElemInt 0) Algebra.Equal
+              <$> e
   traverse_ prettyPrint e
+  traverse_ prettyPrint r
 
 example :: IO ()
 example = do

@@ -121,8 +121,15 @@ instance Algebra Relation where
                   $ tuples,
               name = mempty
             }
+  selection :: Attribute -> Attribute -> Algebra.BinaryOperation -> Relation -> Relation
+  selection a1 a2 op rel = rel
 
-  selection func = func
+  selectionWithConst :: Attribute -> Elem -> Algebra.BinaryOperation -> Relation -> Relation
+  selectionWithConst a v Algebra.Equal rel@Relation {tuples, heading} =
+    fromMaybe rel $ do
+      found <- Map.lookup a $ unHeading heading
+      return $ rel {tuples = Map.filter (\tuple -> v == Vector.unsafeIndex tuple found) tuples}
+  selectionWithConst a v op rel = rel
 
   naturalJoin :: Relation -> Relation -> Relation
   naturalJoin rel1 rel2 = rel1
