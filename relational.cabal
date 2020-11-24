@@ -57,7 +57,11 @@ library
   hs-source-dirs:      src
   exposed-modules:     Relational
                     ,  Relational.Data.Bag
-                    ,  Relational.Data.Table
+                    ,  Relational.Data.Relation
+                    ,  Relational.Data.Attribute
+                    ,  Relational.Example
+                    ,  Relational.Data.Elem
+                    ,  Relational.Algebra
 
 executable relational
   import:              common-options

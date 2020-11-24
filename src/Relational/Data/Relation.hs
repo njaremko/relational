@@ -1,23 +1,25 @@
-module Relational.Data.Table
+module Relational.Data.Relation
   ( Relation (..),
     Algebra (..),
-    example,
-    example3,
+    Heading (..),
+    Tuple (..),
+    prettyPrint,
   )
 where
 
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
+import Relational.Algebra (Algebra (..))
 import Relational.Data.Attribute (Attribute)
 import qualified Relational.Data.Attribute as Attribute
+import Relational.Data.Elem (Elem)
+import Relational.Data.Heading (Heading (Heading), unHeading)
+import Relational.Data.Tuple (Tuple (Tuple))
 import Relude hiding (empty, filter, null, reduce)
+import qualified Relational.Algebra as Algebra
 
 -- newtype Heading = Heading {unHeading :: Map Text Int} deriving newtype (Eq, Semigroup, Monoid)
-newtype Heading = Heading {unHeading :: Map Attribute Int} deriving newtype (Eq, Semigroup, Monoid)
-
-newtype Tuple = Tuple {unTuple :: Vector Elem} deriving newtype (Eq, Semigroup, Monoid, Show)
 
 newtype Name = Name {unName :: Text} deriving newtype (Eq, Semigroup, Monoid, IsString)
 
@@ -30,15 +32,6 @@ data Relation = Relation
 newtype PrimaryKeyNumeric = PrimaryKeyNumeric Int deriving newtype (Eq, Ord, Enum, Num)
 
 newtype PrimaryKeyText = PrimaryKeyText Text deriving newtype (Eq, Ord)
-
-data Elem
-  = ElemText Text
-  | ElemInt Int
-  | ElemBool Bool
-  | ElemBlob ByteString
-  | ElemVarChar Text Int
-  | ElemDecimal Float
-  deriving stock (Eq, Show, Ord)
 
 prettyPrint :: Relation -> IO ()
 prettyPrint (Relation _ heading tuples) = do
@@ -56,68 +49,8 @@ prettyPrint (Relation _ heading tuples) = do
           )
           (sortWith snd $ Map.assocs h)
 
-example1 :: Relation
-example1 = do
-  let heading1 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "name", 1), (Attribute.mkAttribute "email", 2)]
-      tuples =
-        Map.fromList $
-          zip
-            [0 ..]
-            [ Tuple $ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
-              Tuple $ Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
-            ]
-  Relation {heading = heading1, tuples, name = Just "people"}
-
-example2 :: Relation
-example2 = do
-  let heading1 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "model", 1), (Attribute.mkAttribute "person_id", 2)]
-      tuples =
-        Map.fromList $
-          zip
-            [0 ..]
-            [ Tuple $ Vector.fromList [ElemInt 0, ElemText "Ford", ElemInt 1],
-              Tuple $ Vector.fromList [ElemInt 1, ElemText "Chevy", ElemInt 1]
-            ]
-  Relation {heading = heading1, tuples, name = Just "cars"}
-
-example3 :: IO ()
-example3 = do
-  let e = equiJoin (Attribute.mkAttribute "id", example1) (Attribute.mkAttribute "person_id", example2)
-
-  traverse_ prettyPrint e
-
-example :: IO ()
-example = do
-  let heading1 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "name", 1), (Attribute.mkAttribute "email", 2)]
-      heading2 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "name", 1), (Attribute.mkAttribute "email", 2)]
-      tuples =
-        Map.fromList $
-          zip
-            [0 ..]
-            [ Tuple $ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
-              Tuple $ Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
-            ]
-      relation1 = Relation {heading = heading1, tuples, name = Just "apples"}
-      relation2 = Relation {heading = heading2, tuples, name = Just "bees"}
-  prettyPrint $ cartesianProduct relation1 relation2
-
-indexFilter ::
-  (Num b, Eq b) =>
-  Vector a ->
-  Vector b ->
-  Vector a
-indexFilter v idx = Vector.map fst (Vector.filter (\x -> elemV (snd x) idx) vectorMap)
-  where
-    vectorMap = Vector.zipWith (\a b -> (b, a)) (Vector.iterateN size (+ 1) 0) v
-    size = Vector.length v
-    elemV a = Vector.foldl (\acc x -> (x == a) || acc) False
-
-naturalJoin :: Relation -> Relation -> Relation
-naturalJoin Relation {} Relation {} = mempty
-naturalJoin a b = a
-
 instance Semigroup Relation where
-  (<>) = naturalJoin
+  (<>) = Algebra.naturalJoin
 
 instance Monoid Relation where
   mempty =
@@ -146,14 +79,16 @@ mergeHeadings
               $ rightHeading
       Heading $ Map.union leftWithRelName rightWithRelName
 
-class Algebra a where
-  project :: Heading -> a -> Either Text a
-  union :: a -> a -> Either Text a
-  join :: a -> a -> Either Text a
-  equiJoin :: (Attribute, a) -> (Attribute, a) -> Either Text a
-  difference :: a -> a -> Either Text a
-  cartesianProduct :: a -> a -> a
-  selection :: (a -> a) -> a -> a
+indexFilter ::
+  (Num b, Eq b) =>
+  Vector a ->
+  Vector b ->
+  Vector a
+indexFilter v idx = Vector.map fst (Vector.filter (\x -> elemV (snd x) idx) vectorMap)
+  where
+    vectorMap = Vector.zipWith (\a b -> (b, a)) (Vector.iterateN size (+ 1) 0) v
+    size = Vector.length v
+    elemV a = Vector.foldl (\acc x -> (x == a) || acc) False
 
 instance Algebra Relation where
   project (Heading selectedHeaders) (Relation name (Heading headers) rows) =
@@ -189,7 +124,7 @@ instance Algebra Relation where
 
   selection func = func
 
-  join rel1 rel2 = Left "Join is not possible"
+  naturalJoin rel1 rel2 = rel1
 
   difference rel1 rel2 = Left "Difference is not possible"
 
