@@ -1,4 +1,4 @@
-module Relational.Example where
+module Relational.Example (example1, example2, example3, example) where
 
 import Relational.Data.Relation
 import qualified Data.Map as Map
@@ -14,8 +14,8 @@ example1 = do
         Map.fromList $
           zip
             [0 ..]
-            [ Tuple $ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
-              Tuple $ Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
+            [ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
+              Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
             ]
   Relation {heading = heading1, tuples, name = Just "people"}
 
@@ -26,8 +26,8 @@ example2 = do
         Map.fromList $
           zip
             [0 ..]
-            [ Tuple $ Vector.fromList [ElemInt 0, ElemText "Ford", ElemInt 1],
-              Tuple $ Vector.fromList [ElemInt 1, ElemText "Chevy", ElemInt 1]
+            [  Vector.fromList [ElemInt 0, ElemText "Ford", ElemInt 1],
+              Vector.fromList [ElemInt 1, ElemText "Chevy", ElemInt 1]
             ]
   Relation {heading = heading1, tuples, name = Just "cars"}
 
@@ -45,8 +45,8 @@ example = do
         Map.fromList $
           zip
             [0 ..]
-            [ Tuple $ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
-              Tuple $ Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
+            [ Vector.fromList [ElemInt 0, ElemText "John", ElemText "john.smith@gmail.com"],
+              Vector.fromList [ElemInt 1, ElemText "Adam", ElemText "adam.smith@gmail.com"]
             ]
       relation1 = Relation {heading = heading1, tuples, name = Just "apples"}
       relation2 = Relation {heading = heading2, tuples, name = Just "bees"}

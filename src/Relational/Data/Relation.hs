@@ -2,7 +2,6 @@ module Relational.Data.Relation
   ( Relation (..),
     Algebra (..),
     Heading (..),
-    Tuple (..),
     prettyPrint,
   )
 where
@@ -16,7 +15,6 @@ import Relational.Data.Attribute (Attribute)
 import qualified Relational.Data.Attribute as Attribute
 import Relational.Data.Elem (Elem)
 import Relational.Data.Heading (Heading (Heading), unHeading)
-import Relational.Data.Tuple (Tuple (Tuple))
 import Relude hiding (empty, filter, null, reduce)
 
 -- newtype Heading = Heading {unHeading :: Map Text Int} deriving newtype (Eq, Semigroup, Monoid)
@@ -26,7 +24,7 @@ newtype Name = Name {unName :: Text} deriving newtype (Eq, Semigroup, Monoid, Is
 data Relation = Relation
   { name :: Maybe Text,
     heading :: Heading,
-    tuples :: Map Int Tuple
+    tuples :: Map Int (Vector Elem)
   }
 
 newtype PrimaryKeyNumeric = PrimaryKeyNumeric Int deriving newtype (Eq, Ord, Enum, Num)
@@ -36,7 +34,7 @@ newtype PrimaryKeyText = PrimaryKeyText Text deriving newtype (Eq, Ord)
 prettyPrint :: Relation -> IO ()
 prettyPrint (Relation _ heading tuples) = do
   printHeader heading
-  traverse_ (\(Tuple x) -> print x) tuples
+  traverse_ print tuples
   where
     printHeader :: Heading -> IO ()
     printHeader (Heading h) = do
@@ -94,7 +92,7 @@ instance Algebra Relation where
   project :: Heading -> Relation -> Either Text Relation
   project (Heading selectedHeaders) (Relation name (Heading headers) rows) =
     let newHeader = Map.intersection selectedHeaders headers
-        newRows = Map.map (\(Tuple elems) -> Tuple $ indexFilter elems (Vector.fromList $ Map.elems newHeader)) rows
+        newRows = Map.map (\elems -> indexFilter elems (Vector.fromList $ Map.elems newHeader)) rows
      in if Map.null newHeader
           then Left "No overlap in headings provided. Projection is not possible."
           else Right $ Relation {heading = Heading newHeader, tuples = newRows, name}
@@ -109,8 +107,8 @@ instance Algebra Relation where
   cartesianProduct
     (Relation relname1 (Heading leftHeader) rel1)
     (Relation relname2 (Heading rightHeader) rel2) =
-      let e1 = (\(Tuple e) -> e) <$> Map.elems rel1
-          e2 = repeat $ (\(Tuple e) -> e) <$> Map.elems rel2
+      let e1 = Map.elems rel1
+          e2 = repeat $ Map.elems rel2
           tuples =
             let leftWithAllRight = \(a1, a2) -> fmap (a1 <>) a2
              in mconcat (leftWithAllRight <$> zip e1 e2)
@@ -120,7 +118,6 @@ instance Algebra Relation where
               tuples =
                 Map.fromList
                   . zip [0 ..]
-                  . fmap Tuple
                   $ tuples,
               name = mempty
             }
@@ -132,7 +129,7 @@ instance Algebra Relation where
 
   difference :: Relation -> Relation -> Either Text Relation
   difference rel1 rel2 = Left "Difference is not possible"
-  
+
   equiJoin :: (Attribute, Relation) -> (Attribute, Relation) -> Either Text Relation
   equiJoin
     (attr1, leftRel)
@@ -151,7 +148,7 @@ instance Algebra Relation where
                     (name rel)
            in maybeToRight errorMsg . Map.lookup attr1 . unHeading $ heading leftRel
 
-        handleFold :: (Elem, Tuple) -> Map Elem [Tuple] -> Map Elem [Tuple]
+        handleFold :: (Elem, Vector Elem) -> Map Elem [Vector Elem] -> Map Elem [Vector Elem]
         handleFold (valElem, valTuple) acc =
           let x =
                 maybe
@@ -168,13 +165,13 @@ instance Algebra Relation where
                   foldr
                     handleFold
                     mempty
-                    ( (\(Tuple v) -> (Vector.unsafeIndex v buildIndex, Tuple v))
+                    ( (\v -> (Vector.unsafeIndex v buildIndex, v))
                         <$> Map.elems (tuples leftRel)
                     )
                 mergedHeadings = mergeHeadings (buildName, buildHeading) (probeName, probeHeading)
                 mergedTuples = mconcat
                   . catMaybes
-                  $ flip fmap (Map.assocs probeTuples) $ \(i, Tuple t) -> do
+                  $ flip fmap (Map.assocs probeTuples) $ \(i, t) -> do
                     found <- Map.lookup (Vector.unsafeIndex t probeIndex) joinMap
-                    return $ Map.fromList $ fmap (\(Tuple tmp) -> (i, Tuple $ tmp <> t)) found
+                    return $ Map.fromList $ fmap (\tmp -> (i, tmp <> t)) found
              in Right $ Relation {name = mempty, heading = mergedHeadings, tuples = mergedTuples}
