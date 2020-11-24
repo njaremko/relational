@@ -10,6 +10,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
+import Relational.Data.Attribute (Attribute)
+import qualified Relational.Data.Attribute as Attribute
 import Relude hiding (empty, filter, null, reduce)
 
 -- newtype Heading = Heading {unHeading :: Map Text Int} deriving newtype (Eq, Semigroup, Monoid)
@@ -18,15 +20,6 @@ newtype Heading = Heading {unHeading :: Map Attribute Int} deriving newtype (Eq,
 newtype Tuple = Tuple {unTuple :: Vector Elem} deriving newtype (Eq, Semigroup, Monoid, Show)
 
 newtype Name = Name {unName :: Text} deriving newtype (Eq, Semigroup, Monoid, IsString)
-
-data Attribute = Attribute
-  { relname :: Maybe Text,
-    name :: Text
-  }
-  deriving stock (Eq, Ord, Show)
-
-mkAttribute :: Text -> Attribute
-mkAttribute name = Attribute {relname = mempty, name}
 
 data Relation = Relation
   { name :: Maybe Text,
@@ -56,7 +49,7 @@ prettyPrint (Relation _ heading tuples) = do
     printHeader (Heading h) = do
       print $
         fmap
-          ( ( \Attribute {relname, name} ->
+          ( ( \Attribute.Attribute {relname, name} ->
                 fromMaybe "" relname <> "." <> name
             )
               . fst
@@ -65,7 +58,7 @@ prettyPrint (Relation _ heading tuples) = do
 
 example1 :: Relation
 example1 = do
-  let heading1 = Heading $ Map.fromList [(mkAttribute "id", 0), (mkAttribute "name", 1), (mkAttribute "email", 2)]
+  let heading1 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "name", 1), (Attribute.mkAttribute "email", 2)]
       tuples =
         Map.fromList $
           zip
@@ -77,7 +70,7 @@ example1 = do
 
 example2 :: Relation
 example2 = do
-  let heading1 = Heading $ Map.fromList [(mkAttribute "id", 0), (mkAttribute "model", 1), (mkAttribute "person_id", 2)]
+  let heading1 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "model", 1), (Attribute.mkAttribute "person_id", 2)]
       tuples =
         Map.fromList $
           zip
@@ -89,14 +82,14 @@ example2 = do
 
 example3 :: IO ()
 example3 = do
-  let e = equiJoin (mkAttribute "id", example1) (mkAttribute "person_id", example2)
+  let e = equiJoin (Attribute.mkAttribute "id", example1) (Attribute.mkAttribute "person_id", example2)
 
   traverse_ prettyPrint e
 
 example :: IO ()
 example = do
-  let heading1 = Heading $ Map.fromList [(mkAttribute "id", 0), (mkAttribute "name", 1), (mkAttribute "email", 2)]
-      heading2 = Heading $ Map.fromList [(mkAttribute "id", 0), (mkAttribute "name", 1), (mkAttribute "email", 2)]
+  let heading1 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "name", 1), (Attribute.mkAttribute "email", 2)]
+      heading2 = Heading $ Map.fromList [(Attribute.mkAttribute "id", 0), (Attribute.mkAttribute "name", 1), (Attribute.mkAttribute "email", 2)]
       tuples =
         Map.fromList $
           zip
@@ -140,12 +133,12 @@ mergeHeadings
   (rightRelName, Heading rightHeading) =
     do
       let maxIndex = foldr max 0 $ Map.elems leftHeading
-          leftWithRelName = Map.mapKeys (\Attribute {name} -> Attribute {relname = leftRelName, name}) leftHeading
+          leftWithRelName = Map.mapKeys (\Attribute.Attribute {name} -> Attribute.Attribute {relname = leftRelName, name}) leftHeading
           rightWithRelName =
             Map.fromList -- Make a new map of attribute index for both relations
               . flip zip [maxIndex + 1 ..] -- Add new indexes for these attribute names
               . fmap -- Add relation name to attributes, if relevant
-                ( (\Attribute {name} -> (Attribute {relname = rightRelName, name}))
+                ( (\Attribute.Attribute {name} -> (Attribute.Attribute {relname = rightRelName, name}))
                     . fst
                 )
               . sortWith snd -- Sort attributes by tuple ordering
@@ -202,12 +195,21 @@ instance Algebra Relation where
 
   equiJoin
     (attr1, leftRel)
-    (attr2, rightRel) =
-      maybeToRight "EquiJoin is not possible." $ do
-        a2 <- Map.lookup attr1 $ unHeading $ heading leftRel
-        a3 <- Map.lookup attr2 $ unHeading $ heading rightRel
-        return $ doMerge (leftRel, a2) (rightRel, a3)
+    (attr2, rightRel) = do
+      a2 <- getAttributeIndex attr1 leftRel
+      a3 <- getAttributeIndex attr2 rightRel
+      doMerge (a2, leftRel) (a3, rightRel)
       where
+        getAttributeIndex :: Attribute -> Relation -> Either Text Int
+        getAttributeIndex attr rel =
+          let errorMsg =
+                "Unable to find heading '" <> Attribute.name attr
+                  <> maybe
+                    " in relation."
+                    (\n -> "' in relation '" <> n <> "'")
+                    (name rel)
+           in maybeToRight errorMsg . Map.lookup attr1 . unHeading $ heading leftRel
+
         handleFold :: (Elem, Tuple) -> Map Elem [Tuple] -> Map Elem [Tuple]
         handleFold (valElem, valTuple) acc =
           let x =
@@ -217,10 +219,10 @@ instance Algebra Relation where
                   $ Map.lookup valElem acc
            in Map.insert valElem x acc
 
-        doMerge :: (Relation, Int) -> (Relation, Int) -> Relation
+        doMerge :: (Int, Relation) -> (Int, Relation) -> Either Text Relation
         doMerge
-          (Relation {name = buildName, heading = buildHeading}, buildIndex)
-          (Relation {name = probeName, heading = probeHeading, tuples = probeTuples}, probeIndex) = do
+          (buildIndex, Relation {name = buildName, heading = buildHeading})
+          (probeIndex, Relation {name = probeName, heading = probeHeading, tuples = probeTuples}) =
             let joinMap =
                   foldr
                     handleFold
@@ -228,11 +230,10 @@ instance Algebra Relation where
                     ( (\(Tuple v) -> (Vector.unsafeIndex v buildIndex, Tuple v))
                         <$> Map.elems (tuples leftRel)
                     )
-            let mergedHeadings = mergeHeadings (buildName, buildHeading) (probeName, probeHeading)
-                mergedTuples = mconcat $
-                  catMaybes $
-                    flip fmap (Map.assocs probeTuples) $ \(i, Tuple t) -> do
-                      found <- Map.lookup (Vector.unsafeIndex t probeIndex) joinMap
-                      return $ Map.fromList $ fmap (\(Tuple tmp) -> (i, Tuple $ tmp <> t)) found
-
-            Relation {name = mempty, heading = mergedHeadings, tuples = mergedTuples}
+                mergedHeadings = mergeHeadings (buildName, buildHeading) (probeName, probeHeading)
+                mergedTuples = mconcat
+                  . catMaybes
+                  $ flip fmap (Map.assocs probeTuples) $ \(i, Tuple t) -> do
+                    found <- Map.lookup (Vector.unsafeIndex t probeIndex) joinMap
+                    return $ Map.fromList $ fmap (\(Tuple tmp) -> (i, Tuple $ tmp <> t)) found
+             in Right $ Relation {name = mempty, heading = mergedHeadings, tuples = mergedTuples}
